@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>POS System</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #products { display: flex; flex-wrap: wrap; gap: 10px; }
+    .product { border: 1px solid #ccc; padding: 10px; width: 150px; text-align: center; cursor: pointer; }
+    #cart { margin-top: 20px; border-top: 2px solid #000; padding-top: 10px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    #checkout { margin-top: 20px; }
+    button { padding: 10px 15px; margin: 5px; }
+  </style>
+</head>
+<body>
+
+  <h1>POS System</h1>
+
+  <h2>Products</h2>
+  <div id="products"></div>
+
+  <div id="cart">
+    <h2>Cart</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="cart-body"></tbody>
+    </table>
+    <h3 id="cart-total">Total: $0.00</h3>
+    <div id="checkout">
+      <button onclick="checkout()">Checkout</button>
+    </div>
+  </div>
+
+  <script>
+    // 👇 Replace this with your Apps Script Web App URL
+    const API_URL = "https://script.google.com/macros/s/AKfycbyFMeoMXUaE5yri5Xri-hxnA_GO6Qhd9D7p3QkHSFxqD1nuZL1egGRe9h7Xdi4meneZ/exec";
+
+    let cart = [];
+
+    async function loadProducts() {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "syncProducts" })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        renderProducts(data.items);
+      } else {
+        alert("Error loading products: " + data.error);
+      }
+    }
+
+    function renderProducts(items) {
+      const container = document.getElementById("products");
+      container.innerHTML = "";
+      items.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "product";
+        div.innerHTML = `
+          <strong>${item.name}</strong><br>
+          $${item.price.toFixed(2)}
+        `;
+        div.onclick = () => addToCart(item);
+        container.appendChild(div);
+      });
+    }
+
+    function addToCart(item) {
+      const existing = cart.find(p => p.id === item.id);
+      if (existing) {
+        existing.qty++;
+      } else {
+        cart.push({ ...item, qty: 1 });
+      }
+      renderCart();
+    }
+
+    function renderCart() {
+      const tbody = document.getElementById("cart-body");
+      tbody.innerHTML = "";
+      let total = 0;
+      cart.forEach(item => {
+        const row = document.createElement("tr");
+        const lineTotal = item.qty * item.price;
+        total += lineTotal;
+        row.innerHTML = `
+          <td>${item.name}</td>
+          <td>${item.qty}</td>
+          <td>$${item.price.toFixed(2)}</td>
+          <td>$${lineTotal.toFixed(2)}</td>
+        `;
+        tbody.appendChild(row);
+      });
+      document.getElementById("cart-total").textContent = `Total: $${total.toFixed(2)}`;
+    }
+
+    async function checkout() {
+      if (cart.length === 0) {
+        alert("Cart is empty!");
+        return;
+      }
+
+      const order = {
+        id: "O" + Date.now(),
+        ts: new Date().toISOString(),
+        items: cart,
+        subtotal: cart.reduce((sum, i) => sum + i.price * i.qty, 0),
+        discount: 0,
+        tax: 0,
+        total: cart.reduce((sum, i) => sum + i.price * i.qty, 0),
+        method: "cash",
+        taxRate: 0.08
+      };
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "createOrder", data: { order } })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert("Order saved! ID: " + data.orderId);
+        cart = [];
+        renderCart();
+      } else {
+        alert("Error saving order: " + data.error);
+      }
+    }
+
+    loadProducts();
+  </script>
+</body>
+</html>
