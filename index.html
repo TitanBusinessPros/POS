@@ -1,141 +1,331 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>POS System</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #products { display: flex; flex-wrap: wrap; gap: 10px; }
-    .product { border: 1px solid #ccc; padding: 10px; width: 150px; text-align: center; cursor: pointer; }
-    #cart { margin-top: 20px; border-top: 2px solid #000; padding-top: 10px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    #checkout { margin-top: 20px; }
-    button { padding: 10px 15px; margin: 5px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .product-card { border: 1px solid #ccc; padding: 15px; border-radius: 5px; cursor: pointer; }
+        .product-card:hover { background-color: #f5f5f5; }
+        .cart-table { width: 100%; border-collapse: collapse; }
+        .cart-table th, .cart-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .cart-table th { background-color: #f2f2f2; }
+        button { padding: 10px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .checkout-btn { background-color: #2196F3; margin-top: 20px; }
+        .checkout-btn:hover { background-color: #0b7dda; }
+        .tab { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; }
+        .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s; }
+        .tab button:hover { background-color: #ddd; }
+        .tab button.active { background-color: #ccc; }
+        .tabcontent { display: none; padding: 20px; border: 1px solid #ccc; border-top: none; }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <h1>POS System</h1>
+        
+        <div class="tab">
+            <button class="tablinks active" onclick="openTab(event, 'Products')">Products</button>
+            <button class="tablinks" onclick="openTab(event, 'Cart')">Cart</button>
+            <button class="tablinks" onclick="openTab(event, 'Checkout')">Checkout</button>
+        </div>
 
-  <h1>POS System</h1>
+        <div id="Products" class="tabcontent" style="display:block;">
+            <h2>Products</h2>
+            <div id="products-container" class="products-grid">
+                <p>Loading products...</p>
+            </div>
+        </div>
 
-  <h2>Products</h2>
-  <div id="products"></div>
+        <div id="Cart" class="tabcontent">
+            <h2>Cart</h2>
+            <table class="cart-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="cart-items">
+                    <tr>
+                        <td colspan="5">Cart is empty</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div id="cart-total">
+                <h3>Total: $0.00</h3>
+            </div>
+            <button onclick="openTab(event, 'Checkout')" class="checkout-btn">Proceed to Checkout</button>
+        </div>
 
-  <div id="cart">
-    <h2>Cart</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Item</th>
-          <th>Qty</th>
-          <th>Price</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-      <tbody id="cart-body"></tbody>
-    </table>
-    <h3 id="cart-total">Total: $0.00</h3>
-    <div id="checkout">
-      <button onclick="checkout()">Checkout</button>
+        <div id="Checkout" class="tabcontent">
+            <h2>Checkout</h2>
+            <div id="checkout-form">
+                <div>
+                    <label>Customer Name:</label>
+                    <input type="text" id="customer-name" placeholder="Enter customer name">
+                </div>
+                <div>
+                    <label>Payment Method:</label>
+                    <select id="payment-method">
+                        <option value="cash">Cash</option>
+                        <option value="card">Credit Card</option>
+                        <option value="digital">Digital Payment</option>
+                    </select>
+                </div>
+                <div id="checkout-summary">
+                    <h3>Order Summary</h3>
+                    <div id="order-items"></div>
+                    <div id="order-total"></div>
+                </div>
+                <button onclick="processCheckout()" class="checkout-btn">Complete Purchase</button>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <script>
-    // 👇 Replace this with your Apps Script Web App URL
-    const API_URL = "https://script.google.com/macros/s/AKfycbzZXVknSi-ZOmmd69Se3GTxZgtXxrKKEC6v3JyErjlKO2abCb1PnaF6Bp8bQwvIW7xX/exec";
+    <script>
+        // Replace with your Google Apps Script Web App URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2qv6501Q7rE9pWU0_av5QzsFshtsX3bajgtDkDJ5_1hGo7mwRqFAt_ME1qv4A0-aU/exec';
+        
+        let products = [];
+        let cart = [];
+        let taxRate = 0.08;
 
-    let cart = [];
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProducts();
+            loadCartFromStorage();
+            updateCartDisplay();
+        });
 
-    async function loadProducts() {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "syncProducts" })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        renderProducts(data.items);
-      } else {
-        alert("Error loading products: " + data.error);
-      }
-    }
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
 
-    function renderProducts(items) {
-      const container = document.getElementById("products");
-      container.innerHTML = "";
-      items.forEach(item => {
-        const div = document.createElement("div");
-        div.className = "product";
-        div.innerHTML = `
-          <strong>${item.name}</strong><br>
-          $${item.price.toFixed(2)}
-        `;
-        div.onclick = () => addToCart(item);
-        container.appendChild(div);
-      });
-    }
+        async function loadProducts() {
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'syncProducts'
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.ok) {
+                    products = data.items;
+                    displayProducts(products);
+                } else {
+                    console.error('Error loading products:', data.error);
+                }
+            } catch (error) {
+                console.error('Failed to load products:', error);
+            }
+        }
 
-    function addToCart(item) {
-      const existing = cart.find(p => p.id === item.id);
-      if (existing) {
-        existing.qty++;
-      } else {
-        cart.push({ ...item, qty: 1 });
-      }
-      renderCart();
-    }
+        function displayProducts(products) {
+            const container = document.getElementById('products-container');
+            container.innerHTML = '';
+            
+            products.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card';
+                productCard.innerHTML = `
+                    <h3>${product.name}</h3>
+                    <p>SKU: ${product.sku}</p>
+                    <p>Price: $${product.price.toFixed(2)}</p>
+                    <p>Stock: ${product.stock}</p>
+                    <button onclick="addToCart('${product.sku}')">Add to Cart</button>
+                `;
+                container.appendChild(productCard);
+            });
+        }
 
-    function renderCart() {
-      const tbody = document.getElementById("cart-body");
-      tbody.innerHTML = "";
-      let total = 0;
-      cart.forEach(item => {
-        const row = document.createElement("tr");
-        const lineTotal = item.qty * item.price;
-        total += lineTotal;
-        row.innerHTML = `
-          <td>${item.name}</td>
-          <td>${item.qty}</td>
-          <td>$${item.price.toFixed(2)}</td>
-          <td>$${lineTotal.toFixed(2)}</td>
-        `;
-        tbody.appendChild(row);
-      });
-      document.getElementById("cart-total").textContent = `Total: $${total.toFixed(2)}`;
-    }
+        function addToCart(sku) {
+            const product = products.find(p => p.sku === sku);
+            if (!product) return;
 
-    async function checkout() {
-      if (cart.length === 0) {
-        alert("Cart is empty!");
-        return;
-      }
+            const existingItem = cart.find(item => item.sku === sku);
+            
+            if (existingItem) {
+                if (existingItem.quantity < product.stock) {
+                    existingItem.quantity++;
+                } else {
+                    alert('Not enough stock available!');
+                    return;
+                }
+            } else {
+                if (product.stock > 0) {
+                    cart.push({
+                        sku: product.sku,
+                        name: product.name,
+                        price: product.price,
+                        quantity: 1,
+                        taxExempt: product.taxExempt
+                    });
+                } else {
+                    alert('Product out of stock!');
+                    return;
+                }
+            }
+            
+            saveCartToStorage();
+            updateCartDisplay();
+            alert('Added to cart!');
+        }
 
-      const order = {
-        id: "O" + Date.now(),
-        ts: new Date().toISOString(),
-        items: cart,
-        subtotal: cart.reduce((sum, i) => sum + i.price * i.qty, 0),
-        discount: 0,
-        tax: 0,
-        total: cart.reduce((sum, i) => sum + i.price * i.qty, 0),
-        method: "cash",
-        taxRate: 0.08
-      };
+        function removeFromCart(sku) {
+            cart = cart.filter(item => item.sku !== sku);
+            saveCartToStorage();
+            updateCartDisplay();
+        }
 
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "createOrder", data: { order } })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        alert("Order saved! ID: " + data.orderId);
-        cart = [];
-        renderCart();
-      } else {
-        alert("Error saving order: " + data.error);
-      }
-    }
+        function updateCartDisplay() {
+            const cartItems = document.getElementById('cart-items');
+            const cartTotal = document.getElementById('cart-total');
+            
+            if (cart.length === 0) {
+                cartItems.innerHTML = '<tr><td colspan="5">Cart is empty</td></tr>';
+                cartTotal.innerHTML = '<h3>Total: $0.00</h3>';
+                return;
+            }
+            
+            let itemsHtml = '';
+            let subtotal = 0;
+            let tax = 0;
+            
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                subtotal += itemTotal;
+                
+                if (!item.taxExempt) {
+                    tax += itemTotal * taxRate;
+                }
+                
+                itemsHtml += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.quantity}</td>
+                        <td>$${item.price.toFixed(2)}</td>
+                        <td>$${itemTotal.toFixed(2)}</td>
+                        <td>
+                            <button onclick="removeFromCart('${item.sku}')">Remove</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            const total = subtotal + tax;
+            
+            cartItems.innerHTML = itemsHtml;
+            cartTotal.innerHTML = `
+                <h3>Subtotal: $${subtotal.toFixed(2)}</h3>
+                <h3>Tax: $${tax.toFixed(2)}</h3>
+                <h3>Total: $${total.toFixed(2)}</h3>
+            `;
+            
+            // Update checkout summary
+            document.getElementById('order-items').innerHTML = itemsHtml;
+            document.getElementById('order-total').innerHTML = `
+                <h4>Subtotal: $${subtotal.toFixed(2)}</h4>
+                <h4>Tax: $${tax.toFixed(2)}</h4>
+                <h3>Total: $${total.toFixed(2)}</h3>
+            `;
+        }
 
-    loadProducts();
-  </script>
+        function saveCartToStorage() {
+            localStorage.setItem('posCart', JSON.stringify(cart));
+        }
+
+        function loadCartFromStorage() {
+            const savedCart = localStorage.getItem('posCart');
+            if (savedCart) {
+                cart = JSON.parse(savedCart);
+            }
+        }
+
+        async function processCheckout() {
+            if (cart.length === 0) {
+                alert('Cart is empty!');
+                return;
+            }
+            
+            const customerName = document.getElementById('customer-name').value.trim();
+            const paymentMethod = document.getElementById('payment-method').value;
+            
+            if (!customerName) {
+                alert('Please enter customer name');
+                return;
+            }
+            
+            try {
+                const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const tax = cart.reduce((sum, item) => 
+                    item.taxExempt ? sum : sum + (item.price * item.quantity * taxRate), 0);
+                const total = subtotal + tax;
+                
+                const orderData = {
+                    items: cart,
+                    subtotal: subtotal,
+                    discount: 0,
+                    tax: tax,
+                    total: total,
+                    method: paymentMethod,
+                    taxRate: taxRate,
+                    customer: { name: customerName }
+                };
+                
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'createOrder',
+                        data: { order: orderData }
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    alert(`Order created successfully! Order ID: ${result.orderId}`);
+                    // Clear cart
+                    cart = [];
+                    saveCartToStorage();
+                    updateCartDisplay();
+                    document.getElementById('customer-name').value = '';
+                    openTab(event, 'Products');
+                } else {
+                    alert('Error creating order: ' + result.error);
+                }
+                
+            } catch (error) {
+                console.error('Checkout error:', error);
+                alert('Failed to process checkout. Please try again.');
+            }
+        }
+    </script>
 </body>
 </html>
